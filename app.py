@@ -8,22 +8,126 @@ from openpyxl.styles import PatternFill
 import tempfile
 import os
 
-# -------------------- CONFIG UI --------------------
-st.set_page_config(page_title="Top 15 Screener + 7D Protection", layout="wide")
-st.title("📊 Top 15 Smart Entry + 7D Momentum Protection")
-
-st.write(
-    "Upload 6 file Stockbit (1W Flow, 1M Flow, Bandar, Frequency, HVB, Reversal) "
-    "dan jika ada, tambahkan file **7D Momentum Protection**."
+# ===================== PAGE CONFIG =====================
+st.set_page_config(
+    page_title="Top15 Smart Entry + 7D Protection",
+    layout="wide"
 )
 
+# ===================== GOLD-BLACK THEME CSS =====================
+st.markdown("""
+    <style>
+    /* Background */
+    .main {
+        background-color: #050608;
+        color: #F8F3E7;
+    }
+    body {
+        background-color: #050608;
+    }
+    /* Title & Subtitle */
+    .title-text {
+        font-size: 40px;
+        font-weight: 900;
+        color: #F5D26B;
+        padding-bottom: 0px;
+    }
+    .subtitle-text {
+        font-size: 17px;
+        color: #D8D2C2;
+        margin-top: -6px;
+        font-weight: 400;
+    }
+    /* Section Title */
+    .section-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #F5D26B;
+        padding-top: 18px;
+        padding-bottom: 5px;
+    }
+    /* Upload Box */
+    .upload-box {
+        padding: 18px;
+        background: linear-gradient(135deg, #1A1205 0%, #111317 60%, #1F1A0D 100%);
+        border-radius: 12px;
+        border: 1px solid #F5D26B33;
+        color: #F3EBDD;
+        font-size: 14px;
+    }
+    .upload-box b {
+        color: #FAD97F;
+    }
+    /* Info Box */
+    .info-box {
+        padding: 10px 16px;
+        background-color: #111317;
+        border-radius: 8px;
+        border-left: 3px solid #F5D26B;
+        color: #E7E0CF;
+        font-size: 13px;
+        margin-top: 10px;
+    }
+    /* Footer */
+    .footer-text {
+        text-align: center;
+        padding-top: 25px;
+        padding-bottom: 10px;
+        color: #A99C7A;
+        font-size: 12px;
+    }
+    /* Dataframe tweak */
+    .stDataFrame {
+        background-color: #050608;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# ===================== HEADER =====================
+st.markdown("""
+<div style='display:flex; align-items:center; gap:16px; margin-bottom:10px;'>
+    <img src="https://img.icons8.com/fluency/96/combo-chart--v1.png" width="70">
+    <div>
+        <div class="title-text">Top 15 Smart Entry + 7D Momentum Protection</div>
+        <div class="subtitle-text">
+            Screener otomatis berbasis flow, bandarmology, dan momentum pendek dengan proteksi drawdown 1 minggu.
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ===================== UPLOAD SECTION =====================
+st.markdown("<div class='section-title'>📂 Upload File Screener</div>", unsafe_allow_html=True)
+
+st.markdown("""
+<div class='upload-box'>
+<b>Upload 6 file utama dari Stockbit (CSV/XLSX):</b><br>
+1️⃣ <b>1 Week Net Foreign Flow</b><br>
+2️⃣ <b>1 Month Net Foreign Flow</b><br>
+3️⃣ <b>Bandar Accumulation / Bandar Accummulation Uptrend</b><br>
+4️⃣ <b>Frequency</b><br>
+5️⃣ <b>High Volume Breakout</b><br>
+6️⃣ <b>Reversal Signal</b><br><br>
+
+<b>Opsional:</b> tambahkan file <b>7D Momentum Protection</b> (screener teknikal pendek yang sudah kamu buat di Stockbit).<br>
+Saham yang lolos screener 7D akan mendapat prioritas di hasil Top 15.
+</div>
+""", unsafe_allow_html=True)
+
 uploaded_files = st.file_uploader(
-    "Upload file (CSV/XLSX) dari Stockbit",
+    "Upload file-file Stockbit di sini",
     type=["csv", "xlsx", "xls"],
     accept_multiple_files=True,
 )
 
-# -------------------- UTILS --------------------
+st.markdown("""
+<div class="info-box">
+💡 <b>Tips:</b> Pastikan kolom pertama di setiap file adalah <b>kode saham</b> (Symbol) dan ada kolom <b>Price</b>.
+Nama file tidak harus persis, asalkan mengandung kata kunci: "1 Week", "1 Month", "Bandar", "Frequency", "High Volume", "Reversal", atau "7D".
+</div>
+""", unsafe_allow_html=True)
+
+# ===================== UTILS =====================
 def to_num(x):
     if pd.isna(x):
         return np.nan
@@ -87,9 +191,11 @@ def color_rr(path):
                 c.fill = PatternFill(start_color="F4CCCC", end_color="F4CCCC", fill_type="solid")  # merah
     wb.save(path)
 
-# -------------------- MAIN LOGIC --------------------
-if uploaded_files and st.button("🚀 Proses Screener"):
-    # Kumpulkan harga & sinyal
+# ===================== MAIN LOGIC =====================
+
+if uploaded_files and st.button("🚀 Proses Screener", use_container_width=True):
+    st.markdown("<div class='section-title'>🔎 Langkah 1 — Baca & Gabungkan Data</div>", unsafe_allow_html=True)
+
     dfs = []
     signals = {k: set() for k in ["ff1w", "ff1m", "bandar", "frequency", "hvb", "reversal"]}
     prot7d_tickers = set()
@@ -103,11 +209,8 @@ if uploaded_files and st.button("🚀 Proses Screener"):
             st.warning(f"File **{f.name}** di-skip (tidak ada kolom 'Price').")
             continue
 
-        # kolom pertama = ticker (Symbol/Saham/dll)
         first_col = df.columns[0]
-        df["ticker"] = (
-            df[first_col].astype(str).str.upper().str.replace(".JK", "", regex=False)
-        )
+        df["ticker"] = df[first_col].astype(str).str.upper().str.replace(".JK", "", regex=False)
         df["price"] = df["price"].map(to_num)
 
         dfs.append(df[["ticker", "price"]])
@@ -116,7 +219,7 @@ if uploaded_files and st.button("🚀 Proses Screener"):
             signals[label] |= set(df["ticker"])
         elif label == "prot7d":
             prot7d_tickers |= set(df["ticker"])
-            st.info(f"7D Momentum Protection terdeteksi: {f.name} ({len(prot7d_tickers)} ticker)")
+            st.info(f"✅ 7D Momentum Protection terdeteksi dari file **{f.name}** ({len(prot7d_tickers)} ticker).")
         else:
             st.write(f"ℹ️ File **{f.name}** hanya dipakai untuk harga (bukan sinyal utama).")
 
@@ -124,18 +227,15 @@ if uploaded_files and st.button("🚀 Proses Screener"):
         st.error("Tidak ada file valid yang punya kolom 'Price'. Cek kembali input.")
         st.stop()
 
-    # Gabung harga (median)
     raw = pd.concat(dfs, ignore_index=True)
     agg = raw.groupby("ticker", as_index=False).agg({"price": "median"})
 
-    # Matrix sinyal
     sig = pd.DataFrame({"ticker": agg["ticker"]})
     for k in signals:
         sig[k] = sig["ticker"].isin(signals[k]).astype(int)
 
     sig["signal_count"] = sig[list(signals.keys())].sum(axis=1)
 
-    # Kategori (versi lama)
     def infer_cat(r):
         if r["frequency"] and r["hvb"]:
             return "Scalping"
@@ -150,15 +250,16 @@ if uploaded_files and st.button("🚀 Proses Screener"):
     base = sig.merge(agg, on="ticker", how="left")
     base = base[base["category"] != "Watchlist"].copy()
 
-    st.subheader("🔎 Data dasar setelah kategori (Scalping/Intraday/Swing)")
-    st.write(f"Jumlah ticker kandidat: **{len(base)}**")
+    st.write(f"Jumlah kandidat setelah kategori (Scalping/Intraday/Swing): **{len(base)}**")
     st.dataframe(base.head())
 
     if len(base) == 0:
         st.error("Tidak ada saham yang lolos kategori (Scalping/Intraday/Swing). Cek file sinyal.")
         st.stop()
 
-    # SMART ENTRY RANGE
+    # ---------------- SMART ENTRY RANGE ----------------
+    st.markdown("<div class='section-title'>📐 Langkah 2 — Hitung Entry, Stop, Target, & RR</div>", unsafe_allow_html=True)
+
     tick = 1
     risk = {"Scalping": 0.01, "Intraday": 0.02, "Swing": 0.035}
     rr_mult = {"Scalping": 2.5, "Intraday": 2.5, "Swing": 3.0}
@@ -206,14 +307,16 @@ if uploaded_files and st.button("🚀 Proses Screener"):
 
     plan = pd.concat([base, base.apply(smart_range, axis=1)], axis=1)
 
-    # Flag 7D protection
+    # Flag proteksi 7 hari
     plan["prot7d"] = plan["ticker"].isin(prot7d_tickers).astype(int)
     st.write(f"Ticker dengan proteksi 7D: **{plan['prot7d'].sum()}**")
 
-    # Filter ringan (bisa disesuaikan)
+    # Filter ringan
     plan = plan[(plan["RR"] >= 1.8) & (plan["signal_count"] >= 2)].copy()
 
-    # Scoring
+    # ---------------- SCORING ----------------
+    st.markdown("<div class='section-title'>🏆 Langkah 3 — Ranking & Top 15</div>", unsafe_allow_html=True)
+
     plan["score_raw"] = plan["signal_count"] + plan["RR"]
     plan["score"] = plan["score_raw"] + 0.7 * plan["prot7d"]
 
@@ -226,14 +329,16 @@ if uploaded_files and st.button("🚀 Proses Screener"):
     else:
         top15 = protected.copy()
 
-    st.subheader("🏆 TOP 15 (prioritas saham dengan proteksi 7D)")
+    st.subheader("🏅 Top 15 Terpilih")
     st.dataframe(top15[[
         "ticker", "category", "entry_type",
         "entry_low", "entry_high", "target", "stop",
         "RR", "signal_count", "prot7d", "score"
     ]])
 
-    # -------------------- SAVE EXCEL + DOWNLOAD --------------------
+    # ---------------- SAVE EXCEL & DOWNLOAD ----------------
+    st.markdown("<div class='section-title'>⬇️ Langkah 4 — Download Excel</div>", unsafe_allow_html=True)
+
     ts = datetime.now().strftime("%Y-%m-%d_%H%M")
 
     # Top15
@@ -256,18 +361,28 @@ if uploaded_files and st.button("🚀 Proses Screener"):
         plan_bytes = f.read()
     os.remove(plan_path)
 
-    st.download_button(
-        label="⬇️ Download Top 15 (Excel)",
-        data=top_bytes,
-        file_name=f"Top15_SmartColor_7D_{ts}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    col1, col2 = st.columns(2)
+    with col1:
+        st.download_button(
+            label="📥 Download Top 15 (Excel)",
+            data=top_bytes,
+            file_name=f"Top15_SmartColor_7D_{ts}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+    with col2:
+        st.download_button(
+            label="📥 Download All Plan (Excel)",
+            data=plan_bytes,
+            file_name=f"All_SmartColor_7D_{ts}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
 
-    st.download_button(
-        label="⬇️ Download All Plan (Excel)",
-        data=plan_bytes,
-        file_name=f"All_SmartColor_7D_{ts}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-else:
-    st.info("Upload file-file screener lalu klik tombol **Proses Screener**.")
+# ===================== FOOTER =====================
+st.markdown("""
+<div class='footer-text'>
+Top15 Screener · Gold & Black Edition · Dibuat untuk membantu swing trader mengurangi drawdown mingguan.<br>
+Powered by Streamlit.
+</div>
+""", unsafe_allow_html=True)
